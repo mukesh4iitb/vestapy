@@ -245,6 +245,97 @@ def get_bond_dihedrals(POS, bond_quadruples):
     return bond_dihedrals_tuplewise, bond_dihedrals
 
 
+def analyze_xyz(
+    file,
+    precision_bond=2,
+    precision_angle=1,
+    precision_dihedral=1,
+    print_table=True):
+    """
+    Analyze XYZ file and extract bonds, angles, and dihedrals.
+    """
+
+    print(f"sys: {file}")
+
+    POS = ase.io.read(file, format="xyz")
+
+    bond_pairs, bond_triples, bond_quadruples = get_tuples(POS)
+
+    python_vesta_indices = creating_index_mapping_dict(POS)
+
+    vesta_bond_pairs = Convert_Indices(python_vesta_indices[0], bond_pairs)
+    vesta_bond_triples = Convert_Indices(python_vesta_indices[0], bond_triples)
+    vesta_bond_quadruples = Convert_Indices(python_vesta_indices[0], bond_quadruples)
+
+    bond_lengths = get_bond_lengths(POS, bond_pairs)
+    bond_angles = get_bond_angles(POS, bond_triples)
+    bond_dihedral = get_bond_dihedrals(POS, bond_quadruples)
+
+    if print_table:
+
+        COL_BOND = 30
+        COL_ANGLE = 40
+        COL_DIHEDRAL = 50
+
+        header = (
+            f"{'bond-length':<{COL_BOND}} | "
+            f"{'bond-angle':<{COL_ANGLE}} | "
+            f"{'bond-dihedral':<{COL_DIHEDRAL}}"
+        )
+
+        print(header)
+        print("-" * (COL_BOND + COL_ANGLE + COL_DIHEDRAL))
+
+        bonds_data = list(zip(vesta_bond_pairs, bond_lengths[0]))
+        angles_data = list(zip(vesta_bond_triples, bond_angles[0]))
+        dihedrals_data = list(zip(vesta_bond_quadruples, bond_dihedral[0]))
+
+        for bond, angle, dihedral in zip_longest(
+            bonds_data, angles_data, dihedrals_data, fillvalue=(None, None)
+        ):
+
+            bond_str = (
+                f"{bond[0]} = {round(bond[1], precision_bond)}"
+                if bond[0] else ""
+            )
+
+            angle_str = (
+                f"{angle[0]} = {round(angle[1], precision_angle)}"
+                if angle[0] else ""
+            )
+
+            dihedral_str = (
+                f"{dihedral[0]} = {round(dihedral[1], precision_dihedral)}"
+                if dihedral[0] else ""
+            )
+
+            print(
+                f"{bond_str:<{COL_BOND}} | "
+                f"{angle_str:<{COL_ANGLE}} | "
+                f"{dihedral_str:<{COL_DIHEDRAL}}"
+            )
+
+        print(range_finder(bond_lengths[1]))
+        print(range_finder(bond_angles[1], precision_angle))
+        print(range_finder(bond_dihedral[1], precision_dihedral))
+
+    return {
+        "file": file,
+        "POS": POS,
+        "bond_pairs": vesta_bond_pairs,
+        "bond_triples": vesta_bond_triples,
+        "bond_quadruples": vesta_bond_quadruples,
+        "bond_lengths": bond_lengths,
+        "bond_angles": bond_angles,
+        "bond_dihedrals": bond_dihedral,
+    }
+
+# Example:
+#for file in [ "Al2S12_hse_def2.xyz","Al2S18_hse_def2.xyz","Al2S3_hse_def2.xyz","Al2S6_hse_def2.xyz" ]:
+#    analyze_xyz(file)
+
+
+
 ## sometime, reading the xyz file, which has extraline at the end of file, causes erro
 ## I am using try-except block to avoid the same.
 
@@ -280,68 +371,6 @@ def get_bond_dihedrals(POS, bond_quadruples):
 #print(range_finder(bond_lengths[1]))
 
 
-for file in [ "K2S2_hse_def2.xyz","K2S4_hse_def2.xyz","K2S6_hse_def2.xyz","K2S8_hse_def2.xyz","K2S_hse_def2.xyz" ]:
-    print("**************{}************".format(file))
-    POS = ase.io.read(file, format="xyz")
-    bond_pairs, bond_triples, bond_quadruples = get_tuples(POS)
-    #print(bond_quadruples)
-    
-    python_vesta_indices = creating_index_mapping_dict(POS)
-    vesta_bond_pairs = Convert_Indices(python_vesta_indices[0], bond_pairs)
-    vesta_bond_triples = Convert_Indices(python_vesta_indices[0], bond_triples)
-    vesta_bond_quadruples = Convert_Indices(python_vesta_indices[0], bond_quadruples)
-    bond_lengths = get_bond_lengths(POS, bond_pairs)
-    bond_angles = get_bond_angles(POS, bond_triples)
-    bond_dihedral = get_bond_dihedrals(POS, bond_quadruples)
-    
-    #for bp, bl in zip(vesta_bond_pairs, bond_lengths[0]):
-    #    print(bp, round(bl, 2))
-    #for bt, ba in zip(vesta_bond_triples, bond_angles[0]):
-    #    print(bt, round(ba, 2))
-    #for bq, bd in zip(vesta_bond_quadruples, bond_dihedral[0]):
-    #    print(bq, round(bd, 2))
-
-    #for bp, bt, bq in zip_longest(
-    #    zip(vesta_bond_pairs, bond_lengths[0]),
-    #    zip(vesta_bond_triples, bond_angles[0]),
-    #    zip(vesta_bond_quadruples, bond_dihedral[0]),
-    #    fillvalue=(None, None)
-    #):
-    #    output = []
-    #    if bp[0] is not None:
-    #        output.append(f"Bond: {bp[0]} → {round(bp[1], 2)}")
-    #    if bt[0] is not None:
-    #        output.append(f"Angle: {bt[0]} → {round(bt[1], 2)}")
-    #    if bq[0] is not None:
-    #        output.append(f"Dihedral: {bq[0]} → {round(bq[1], 2)}")
-    #    
-    #    if output:
-    #        print(" | ".join(output))
-
-    # Define column widths
-    COL_BOND = 30
-    COL_ANGLE = 40
-    COL_DIHEDRAL = 50
-    
-    # Create header
-    header = f"{'bond-length':<{COL_BOND}} | {'bond-angle':<{COL_ANGLE}} | {'bond-dihedral':<{COL_DIHEDRAL}}"
-    print(header)
-    print("-" * (COL_BOND + COL_ANGLE + COL_DIHEDRAL))
-    
-    # Prepare data
-    bonds_data = list(zip(vesta_bond_pairs, bond_lengths[0]))
-    angles_data = list(zip(vesta_bond_triples, bond_angles[0]))
-    dihedrals_data = list(zip(vesta_bond_quadruples, bond_dihedral[0]))
-    for bond, angle, dihedral in zip_longest(bonds_data, angles_data, dihedrals_data, fillvalue=(None, None)):
-        bond_str = f"{bond[0]} = {round(bond[1], 2)}" if bond[0] else ""
-        angle_str = f"{angle[0]} = {round(angle[1], 2)}" if angle[0] else ""
-        dihedral_str = f"{dihedral[0]} = {round(dihedral[1], 2)}" if dihedral[0] else ""
-
-        print(f"{bond_str:<{COL_BOND}} | {angle_str:<{COL_ANGLE}} | {dihedral_str:<{COL_DIHEDRAL}}")
-
-    print(range_finder(bond_lengths[1]))
-    print(range_finder(bond_angles[1]))
-    print(range_finder(bond_dihedral[1]))
 
 #print("bond-pairs (vesta-indices):", Convert_Indices(python_vesta_indices[0], bond_pairs))
 #print("--"*20)
