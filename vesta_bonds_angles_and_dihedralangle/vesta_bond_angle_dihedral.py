@@ -3,6 +3,16 @@ import ase.io
 import numpy as np
 from collections import defaultdict
 from vesta_bond_dict import bond_dict
+from itertools import zip_longest
+
+
+def functions():
+    """Return a list of public functions in this module."""
+    import inspect
+    return sorted([
+        name for name, obj in globals().items()
+        if inspect.isfunction(obj) and not name.startswith("_")
+    ])
 
 
 def get_bond_cutoff(elem1, elem2, delta=0.0):
@@ -38,35 +48,6 @@ def angle_A_B_C(POS, idx1, idx2, idx3):
     return angle
 
 
-#def dihedral_angle_A_B_C_D(idx1, idx2, idx3, idx4):
-#    p0 = POS.positions[idx1]
-#    p1 = POS.positions[idx2]
-#    p2 = POS.positions[idx3]
-#    p3 = POS.positions[idx4]
-#
-#    # Bond vectors
-#    b0 = p0 - p1
-#    b1 = p2 - p1
-#    b2 = p3 - p2
-#
-#    # Normalize b1
-#    b1 /= np.linalg.norm(b1)
-#
-#    # Vectors normal to planes
-#    n1 = np.cross(b0, b1)
-#    n2 = np.cross(b1, b2)
-#
-#    # Normalize normals
-#    n1 /= np.linalg.norm(n1)
-#    n2 /= np.linalg.norm(n2)
-#
-#    # Compute angle using arctangent for correct sign
-#    x = np.dot(n1, n2)
-#    y = np.dot(np.cross(n1, n2), b1)
-#
-#    angle = np.degrees(np.arctan2(y, x))
-#    return angle
-
 
 def dihedral_angle_A_B_C_D(POS, idx1, idx2, idx3, idx4):
     p0 = POS.positions[idx1]
@@ -100,6 +81,9 @@ def dihedral_angle_A_B_C_D(POS, idx1, idx2, idx3, idx4):
     dihedral = np.degrees(np.arccos(cos_theta))
     return dihedral
 
+#POS=ase.io.read("K2S8_hse_def2.xyz")
+#print(dihedral_angle_A_B_C_D(POS, 8, 0, 2, 1))
+
 def creating_index_mapping_dict(POS):
     elements = POS.get_chemical_symbols()
 
@@ -120,6 +104,8 @@ def creating_index_mapping_dict(POS):
 
 
 def Convert_Indices(mapping_dict, indices):
+    if not indices:
+        return []
     if isinstance(indices[0], tuple):
         # Handle bond pairs, triples, quadruples
         return [tuple(mapping_dict.get(atom, atom) for atom in group) for group in indices]
@@ -133,7 +119,7 @@ def range_finder(dict_with_str_key_list_value):
     for key, values in dict_with_str_key_list_value.items():
         min_val = min(values)
         max_val = max(values)
-        key_min_max_values += f"{key}: range={min_val:.3f}-{max_val:.3f}\n"
+        key_min_max_values += f"{key}: range={min_val:.2f}-{max_val:.2f}\n"
     return key_min_max_values
 
 
@@ -173,7 +159,11 @@ def get_tuples(POS, delta=0):
     for b, c in bond_pairs:
         for a in neighbors[b] - {c}:
             for d in neighbors[c] - {b}:
-                bond_quadruples.append((a, b, c, d))
+                # Note there is an possibility of a and d being equal atom. 
+                # So a != d
+                # OR if len(set([a, b, c, d])) == 4:
+                if len(set([a, b, c, d])) == 4:
+                    bond_quadruples.append((a, b, c, d))
 
     return bond_pairs, bond_triples, bond_quadruples
 
@@ -292,19 +282,68 @@ def get_bond_dihedrals(POS, bond_quadruples):
 #print(range_finder(bond_lengths[1]))
 
 
-for file in [ "Al2S12_hse_1.out.xyz","Al2S12_pbe_1.out.xyz","Al2S18_hse_1.out.xyz","Al2S18_pbe_1.out.xyz","Al2S3_hse_1.out.xyz","Al2S3_pbe_1.out.xyz","Al2S6_hse_1.out.xyz","Al2S6_pbe_1.out.xyz" ]:
+for file in [ "K2S2_hse_def2.xyz","K2S4_hse_def2.xyz","K2S6_hse_def2.xyz","K2S8_hse_def2.xyz","K2S_hse_def2.xyz" ]:
     print("**************{}************".format(file))
     POS = ase.io.read(file, format="xyz")
     bond_pairs, bond_triples, bond_quadruples = get_tuples(POS)
+    #print(bond_quadruples)
     
     python_vesta_indices = creating_index_mapping_dict(POS)
     vesta_bond_pairs = Convert_Indices(python_vesta_indices[0], bond_pairs)
+    vesta_bond_triples = Convert_Indices(python_vesta_indices[0], bond_triples)
+    vesta_bond_quadruples = Convert_Indices(python_vesta_indices[0], bond_quadruples)
     bond_lengths = get_bond_lengths(POS, bond_pairs)
+    bond_angles = get_bond_angles(POS, bond_triples)
+    bond_dihedral = get_bond_dihedrals(POS, bond_quadruples)
     
-    for bp, bl in zip(vesta_bond_pairs, bond_lengths[0]):
-        print(bp, round(bl, 2))
+    #for bp, bl in zip(vesta_bond_pairs, bond_lengths[0]):
+    #    print(bp, round(bl, 2))
+    #for bt, ba in zip(vesta_bond_triples, bond_angles[0]):
+    #    print(bt, round(ba, 2))
+    #for bq, bd in zip(vesta_bond_quadruples, bond_dihedral[0]):
+    #    print(bq, round(bd, 2))
+
+    #for bp, bt, bq in zip_longest(
+    #    zip(vesta_bond_pairs, bond_lengths[0]),
+    #    zip(vesta_bond_triples, bond_angles[0]),
+    #    zip(vesta_bond_quadruples, bond_dihedral[0]),
+    #    fillvalue=(None, None)
+    #):
+    #    output = []
+    #    if bp[0] is not None:
+    #        output.append(f"Bond: {bp[0]} → {round(bp[1], 2)}")
+    #    if bt[0] is not None:
+    #        output.append(f"Angle: {bt[0]} → {round(bt[1], 2)}")
+    #    if bq[0] is not None:
+    #        output.append(f"Dihedral: {bq[0]} → {round(bq[1], 2)}")
+    #    
+    #    if output:
+    #        print(" | ".join(output))
+
+    # Define column widths
+    COL_BOND = 30
+    COL_ANGLE = 40
+    COL_DIHEDRAL = 50
     
+    # Create header
+    header = f"{'bond-length':<{COL_BOND}} | {'bond-angle':<{COL_ANGLE}} | {'bond-dihedral':<{COL_DIHEDRAL}}"
+    print(header)
+    print("-" * (COL_BOND + COL_ANGLE + COL_DIHEDRAL))
+    
+    # Prepare data
+    bonds_data = list(zip(vesta_bond_pairs, bond_lengths[0]))
+    angles_data = list(zip(vesta_bond_triples, bond_angles[0]))
+    dihedrals_data = list(zip(vesta_bond_quadruples, bond_dihedral[0]))
+    for bond, angle, dihedral in zip_longest(bonds_data, angles_data, dihedrals_data, fillvalue=(None, None)):
+        bond_str = f"{bond[0]} = {round(bond[1], 2)}" if bond[0] else ""
+        angle_str = f"{angle[0]} = {round(angle[1], 2)}" if angle[0] else ""
+        dihedral_str = f"{dihedral[0]} = {round(dihedral[1], 2)}" if dihedral[0] else ""
+
+        print(f"{bond_str:<{COL_BOND}} | {angle_str:<{COL_ANGLE}} | {dihedral_str:<{COL_DIHEDRAL}}")
+
     print(range_finder(bond_lengths[1]))
+    print(range_finder(bond_angles[1]))
+    print(range_finder(bond_dihedral[1]))
 
 #print("bond-pairs (vesta-indices):", Convert_Indices(python_vesta_indices[0], bond_pairs))
 #print("--"*20)
