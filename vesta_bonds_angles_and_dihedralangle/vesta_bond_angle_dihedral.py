@@ -113,15 +113,13 @@ def Convert_Indices(mapping_dict, indices):
         # Single list of atoms
         return [mapping_dict.get(atom, atom) for atom in indices]
 
-
-def range_finder(dict_with_str_key_list_value):
+def range_finder(dict_with_str_key_list_value, precision=2):
     key_min_max_values = ''
     for key, values in dict_with_str_key_list_value.items():
         min_val = min(values)
         max_val = max(values)
-        key_min_max_values += f"{key}: range={min_val:.2f}-{max_val:.2f}\n"
+        key_min_max_values += f"{key}: range={min_val:.{precision}f}-{max_val:.{precision}f}\n"
     return key_min_max_values
-
 
 
 def get_tuples(POS, delta=0):
